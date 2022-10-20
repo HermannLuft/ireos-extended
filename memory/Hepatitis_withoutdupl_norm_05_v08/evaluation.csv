@@ -1,0 +1,10 @@
+,correlation
+LogisticRegression_probability,0.661
+LogisticRegression_distance,0.576
+SVC_probability,0.661
+SVC_distance,0.733
+KNNC_1,0.539
+KNNC_7,0.539
+KNNC_35,0.588
+LinearSVC_probability,0.733
+LinearSVC_distance,0.733

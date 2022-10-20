@@ -13,7 +13,6 @@ from sklearn.svm import SVC, LinearSVC
 sys.path.append('../../')
 from ireos import IREOS
 
-
 import numpy as np
 from matplotlib import pyplot as plt
 import numba
@@ -30,8 +29,10 @@ from outlier_detection import LoOP, COF, FastABOD, LDF, KNN, IsoForest, OC_SVM, 
     PCA_Detector
 from visualization import plot_classification, plot_model
 
-
 # TODO: add log levels
+
+# if the results should always be computed when already present
+force_compute = True
 
 
 def compute_outlier_result(algorithm, X, y, dataset=None, **kwargs):
@@ -39,8 +40,7 @@ def compute_outlier_result(algorithm, X, y, dataset=None, **kwargs):
     if dataset is not None:
         path = os.path.join('memory', dataset, algorithm.__name__ + '_solution.npy')
         if not os.path.exists(os.path.dirname(path)):
-            # TODO gibts bessere methode
-            os.mkdir(os.path.dirname(path))
+            os.makedirs(os.path.dirname(path))
         try:
             next_solutions = np.load(path)
         except FileNotFoundError:
@@ -54,13 +54,11 @@ def compute_outlier_result(algorithm, X, y, dataset=None, **kwargs):
 # TODO: change to compute_spearman for solutions -> pre filtering solutions
 def compute_spearman(Maximum_Margin_Classifier, data, ground_truth, solutions,
                      C=100, m_cl=1, n_run_values=100, metric='probability'):
-    # TODO: check if normalized
+    assert data.min() >= 0 and data.max() <= 1, "Data not normalized"
+
     Ireos = IREOS(Maximum_Margin_Classifier, n_run_values=n_run_values, C=C)
 
-    # TODO: Check reason for nans
-    # TODO: interesting if (solution > 0).any() occluded
-    evaluations = [(roc_auc_score(ground_truth, solution), solution) for solution in solutions
-                   if not np.isnan(solution).any() and (solution > 0).any()]
+    evaluations = [(roc_auc_score(ground_truth, solution), solution) for solution in solutions]
 
     print(f'All auc scores are {[round(x[0], 3) for x in evaluations]}')
 
@@ -71,7 +69,6 @@ def compute_spearman(Maximum_Margin_Classifier, data, ground_truth, solutions,
         index = np.argmin(np.abs(auc_scores_values - value))
         evenly_spaced_auc.append(evaluations[index])
     evaluations_10 = evenly_spaced_auc
-
 
     print(f'10 evenly spaced auc scores are {[round(x[0], 3) for x in evaluations_10]}')
 
@@ -121,13 +118,13 @@ def main():
     solutions = np.vstack(solutions_list)
 
     # Comparing with JAVA Implementation
-    #path = os.path.join('C:\\Users\\luft7\\IdeaProjects\\IREOS-java\\solutions')
-    #conv = {0: lambda x: 0 if x == b'"inlier"' else 1}
-    #solutions = np.vstack([np.loadtxt(os.path.join(path, str(i)), converters=conv) for i in range(11)])
+    # path = os.path.join('C:\\Users\\luft7\\IdeaProjects\\IREOS-java\\solutions')
+    # conv = {0: lambda x: 0 if x == b'"inlier"' else 1}
+    # solutions = np.vstack([np.loadtxt(os.path.join(path, str(i)), converters=conv) for i in range(11)])
 
     ireos_setting = [
         (LogisticRegression, {'metric': 'probability', 'n_run_values': 100}),
-        #(KLR, {'metric': 'probability', 'n_run_values': 100}),
+        # (KLR, {'metric': 'probability', 'n_run_values': 100}),
         (LogisticRegression, {'metric': 'distance', 'n_run_values': 100}),
         (SVC, {'metric': 'probability', 'n_run_values': 100}),
         (SVC, {'metric': 'distance', 'n_run_values': 100}),
@@ -135,8 +132,8 @@ def main():
         (KNNM, {'n_run_values': int(0.1 * len(X))}),
         (KNNM, {'n_run_values': int(0.5 * len(X))}),
         (KNNC, {'n_run_values': 1}),
-        (KNNC, {'n_run_values': int(0.1*len(X))}),
-        (KNNC, {'n_run_values': int(0.5*len(X))}),
+        (KNNC, {'n_run_values': int(0.1 * len(X))}),
+        (KNNC, {'n_run_values': int(0.5 * len(X))}),
         (LinearSVC, {'metric': 'probability', 'n_run_values': 1}),
         (LinearSVC, {'metric': 'distance', 'n_run_values': 1}),
     ]
@@ -156,7 +153,7 @@ def main():
             results = pd.read_csv(path, index_col=0)
         except FileNotFoundError:
             results = pd.DataFrame([])
-        if name not in results.index:
+        if force_compute or name not in results.index:
             correlation = compute_spearman(Maximum_Margin_Classifier, X, y, solutions,
                                            C=C, m_cl=1, **kwargs)
             results.at[name, 'correlation'] = round(correlation, 3)
@@ -165,9 +162,6 @@ def main():
             correlation = results.at[name, 'correlation']
 
         print(f'Correlation: {correlation}')
-
-
-
 
 
 if __name__ == '__main__':

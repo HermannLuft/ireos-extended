@@ -101,8 +101,8 @@ def main():
     auc_scores, omega = filtering_solutions(solutions, y)
 
     ireos_setting = [
-        #(LogisticRegression, {'metric': 'probability', 'n_gammas': 100}),
-        (KLR, {'metric': 'probability', 'n_gammas': 100}),
+        (LogisticRegression, {'metric': 'probability', 'n_gammas': 100}),
+        #(KLR, {'metric': 'probability', 'n_gammas': 100}),
         (LogisticRegression, {'metric': 'distance', 'n_gammas': 100}),
         (SVC, {'metric': 'probability', 'n_gammas': 100}),
         (SVC, {'metric': 'distance', 'n_gammas': 100}),

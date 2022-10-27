@@ -55,7 +55,7 @@ def main():
     memorizing_path = os.path.join('memory', 'complete', 'evaluation.csv')
     evaluation.to_csv(memorizing_path)
 
-    evaluation.rename(columns=lambda x: x.split, inplace=True)
+    evaluation.rename(columns=lambda x: [x.split('_')[i] for i in (0, -1)], inplace=True)
     for dataset in datasets[:-1]:
         evaluation.plot(y=dataset)
     plt.show()

@@ -1,7 +1,0 @@
-,1,100
-SVC,0.37,0.37
-LogisticRegression,0.406,0.406
-SVC_probability,0.37,0.37
-SVC_distance,0.406,0.382
-LogisticRegression_probability,0.406,0.406
-LogisticRegression_distance,-0.406,0.406

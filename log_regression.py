@@ -78,12 +78,10 @@ class KLR:
         return predictions
 
 
-# TODO: alten anschauen da er bessere Werte geliefert hat
+# Information: kNN classifier aus sklearn interessant
 class KNNC:
 
     def __init__(self, X, y):
-        # self.model = KNeighborsClassifier(n_neighbors=min(int(k), len(X) - 1))
-        # print(f'X: {X[Y == 0]} \n Y: {Y}')
         self.X = X
         self.kdt = KDTree(X, metric='euclidean')
 

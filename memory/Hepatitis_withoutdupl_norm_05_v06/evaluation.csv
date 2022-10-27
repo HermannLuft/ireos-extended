@@ -3,8 +3,9 @@ LogisticRegression_probability,0.236
 LogisticRegression_distance,0.188
 SVC_probability,0.212
 SVC_distance,0.479
-KNNC_1,0.224
-KNNC_7,0.188
-KNNC_35,0.188
+KNNM_10%,0.188
+KNNM_50%,0.188
+KNNC_10%,0.188
+KNNC_50%,0.188
 LinearSVC_probability,0.212
 LinearSVC_distance,0.418

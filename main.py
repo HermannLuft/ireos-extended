@@ -2,7 +2,6 @@ import os
 import sys
 from bisect import bisect
 from itertools import combinations
-
 import pandas as pd
 from scipy import stats
 from sklearn import preprocessing
@@ -33,7 +32,7 @@ from visualization import plot_classification, plot_model
 # TODO: add log levels
 
 # if the results should always be computed when already present
-force_compute = False
+force_compute = True
 
 
 def compute_outlier_result(algorithm, X, y, dataset=None, **kwargs):

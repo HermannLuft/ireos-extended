@@ -1,4 +1,5 @@
 import os
+import dataframe_image as dfi
 
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -54,16 +55,29 @@ def main():
 
     memorizing_path = os.path.join('memory', 'complete', 'evaluation.csv')
     evaluation.to_csv(memorizing_path)
+    pd.options.display.latex.repr = True
+    #df_styled = evaluation.transpose().style.background_gradient()
+    evaluation.transpose().dfi.export("plots/evaluation.png", max_cols=-1)
 
-    evaluation.rename(columns=lambda x: [x.split('_')[i] for i in (0, -1)], inplace=True)
-    for dataset in datasets[:-1]:
-        evaluation.plot(y=dataset)
+    column_conv = {
+        'LogisticRegression_probability': 'LG_P',
+        'LogisticRegression_distance': 'LG_D',
+        'SVC_probability': 'SVC_P',
+        'SVC_distance': 'SVC_D',
+        'KNNM_10%': 'KM_10',
+        'KNNM_50%': 'KM_50',
+        'KNNC_10%': 'KC_10',
+        'KNNC_50%': 'KC_50',
+        'LinearSVC_probability': 'LC_P',
+        'LinearSVC_distance': 'LC_D',
+    }
+
+    evaluation_pd = evaluation.transpose()
+    evaluation_pd.rename(columns=lambda x: column_conv[x], inplace=True)
+    evaluation_pd.plot(kind='box', title='Classifier Correlations', showmeans=True, fontsize=8)
     plt.show()
 
-    #fig, axis = plt.subplots(2, 4)
-    #for dataset_i, ax in enumerate(axis):
-    #    ax.plot(evaluation.iloc[dataset_i])
-    print(evaluation)
+    exit(0)
 
 
 if __name__ == '__main__':

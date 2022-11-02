@@ -1,0 +1,4 @@
+Figure 9 aus Marques: -> Aber nur für die min difficult varianten
+Beste Correlation für die min difficult varianten vs max difficult
+vll noch model selection
+Datensätze finden wo Sich die Correlations am meisten Unterscheiden -> Gründe suchen/ womöglich diversity

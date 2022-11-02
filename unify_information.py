@@ -1,5 +1,7 @@
 import os
-import dataframe_image as dfi
+
+import numpy as np
+# import dataframe_image as dfi
 
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -43,6 +45,9 @@ def main():
     ]
 
     evaluation = pd.DataFrame([])
+    difficulty = pd.DataFrame([])
+    dataset_evaluation = pd.DataFrame([])
+    auc_scores = pd.DataFrame([])
 
     for dataset in datasets:
         path = os.path.join('memory', dataset, 'evaluation.csv')
@@ -53,15 +58,27 @@ def main():
         except FileNotFoundError:
             print(f'Dataset evaluation for {dataset} not found')
 
+        path = os.path.join('memory', dataset, 'dataset_evaluation.csv')
+        try:
+            results = pd.read_csv(path, index_col=0) \
+                .rename(columns={'evaluation': dataset})
+            difficulty = pd.concat([difficulty, results], axis=1)
+        except FileNotFoundError:
+            print(f'Dataset difficulty for {dataset} not found')
+
     memorizing_path = os.path.join('memory', 'complete', 'evaluation.csv')
     evaluation.to_csv(memorizing_path)
-    pd.options.display.latex.repr = True
-    #df_styled = evaluation.transpose().style.background_gradient()
-    evaluation.transpose().dfi.export("plots/evaluation.png", max_cols=-1)
+
+    memorizing_path = os.path.join('memory', 'complete', 'difficulty.csv')
+    difficulty.to_csv(memorizing_path)
+    # df_styled = evaluation.transpose().style.background_gradient()
+    # evaluation.transpose().dfi.export("plots/evaluation.png", max_cols=-1)
 
     column_conv = {
         'LogisticRegression_probability': 'LG_P',
         'LogisticRegression_distance': 'LG_D',
+        'KLR_probability': 'KLR_P',
+        'KLR_distance': 'KLR_D',
         'SVC_probability': 'SVC_P',
         'SVC_distance': 'SVC_D',
         'KNNM_10%': 'KM_10',
@@ -75,6 +92,25 @@ def main():
     evaluation_pd = evaluation.transpose()
     evaluation_pd.rename(columns=lambda x: column_conv[x], inplace=True)
     evaluation_pd.plot(kind='box', title='Classifier Correlations', showmeans=True, fontsize=8)
+    plt.savefig('plots/Classifier_Correlations.png')
+
+    colors_conv = {
+        'Hepatitis': 'red',
+        'Parkinson': 'blue',
+        'Lymphography': 'orange',
+        'WBC': 'green',
+        'Wilt': 'black',
+    }
+
+    difficulty_pd = difficulty.transpose()
+    colors = [colors_conv[dataset.split('_')[0]] for dataset in difficulty_pd.index.to_list()]
+    difficulty_pd.plot.scatter(x='Difficulty', y='Diversity', c=colors)
+    plt.savefig('plots/difficulty.png')
+
+    difficulty_pd['group'] = [dataset.split('_')[0] for dataset in difficulty_pd.index.to_list()]
+    min_diff = difficulty_pd.groupby('group').Difficulty.idxmin()
+    evaluation_pd.loc[min_diff]
+
     plt.show()
 
     exit(0)

@@ -59,7 +59,11 @@ class IREOS_LC(IREOS):
             model = KLR(kernel='rbf', gamma=gamma, C=C)
             model.fit(self.X, solution)
             # plot_classification(model, X, y)
-            p = model.predict_proba(self.X[solution == 1])[:, 1]
+            if self.metric == 'probability':
+                p = model.predict_proba(self.X[solution == 1])[:, 1]
+            elif self.metric == 'distance':
+                p = model.decision_function(self.X[solution == 1])
+            #p = model.predict_proba(self.X[solution == 1])[:, 1]
         elif self.Classifier == LogisticRegression:
             model = LogisticRegression(C=C, penalty='l2')
             # Information: es existiert noch RBFSampler der schneller ist aber ungenauer

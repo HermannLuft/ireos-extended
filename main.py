@@ -97,12 +97,17 @@ def main():
            for algorithm, kwargs in algorithm_setting]
     solutions_list = Parallel(n_jobs=len(algorithm_setting))(job)
     solutions = np.vstack(solutions_list)
+    auc_scores = np.array([roc_auc_score(y, solution) for solution in solutions])
+    path = os.path.join('memory', dataset, 'auc_scores.npy')
+    np.save(path, auc_scores)
+
     auc_scores, omega = filtering_solutions(solutions, y)
 
     ireos_setting = [
-        (LogisticRegression, {'metric': 'probability', 'n_gammas': 100}),
+        #(LogisticRegression, {'metric': 'probability', 'n_gammas': 100}),
         #(KLR, {'metric': 'probability', 'n_gammas': 100}),
-        (LogisticRegression, {'metric': 'distance', 'n_gammas': 100}),
+        #(KLR, {'metric': 'distance', 'n_gammas': 100}),
+        #(LogisticRegression, {'metric': 'distance', 'n_gammas': 100}),
         (SVC, {'metric': 'probability', 'n_gammas': 100}),
         (SVC, {'metric': 'distance', 'n_gammas': 100}),
         (KNNM, {'percent': 0.1}),

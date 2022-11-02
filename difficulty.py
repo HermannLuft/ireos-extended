@@ -15,6 +15,8 @@ import numpy as np
 from log_regression import KLR
 
 
+compute_ireos_difficulty = True
+
 # TODO: similiarity with main compute_outlier_resuls
 def get_outlier_results(algorithm, X, y, dataset=None, **kwargs):
     model = algorithm(X, y, **kwargs)
@@ -39,7 +41,7 @@ Parkinson 2: perfekt
 
 
 def main():
-    dataset = "Lymphography_withoutdupl_norm_idf"
+    dataset = "Hepatitis_withoutdupl_norm_05_v02"
     if len(sys.argv) > 1:
         dataset = sys.argv[1]
     X, y = load_campos_data(dataset)
@@ -79,10 +81,11 @@ def main():
     print(f'Difficulty: {difficulty}')
     print(f'Diversity: {diversity}')
 
-    Ireos = IREOS_LC(LogisticRegression, adjustment=True)
-    Ireos.fit(X, [y])
-    c = list(Ireos.compute_ireos_scores())
-    print(f'Datasetscore: {c}')
+    if compute_ireos_difficulty:
+        Ireos = IREOS_LC(LogisticRegression, adjustment=True)
+        Ireos.fit(X, [y])
+        c = list(Ireos.compute_ireos_scores())
+        print(f'Datasetscore: {c}')
 
     # print(f'E_I: {Ireos.E_I}')
 
@@ -90,7 +93,8 @@ def main():
     results = pd.DataFrame([])
     results.at['Difficulty', 'evaluation'] = difficulty
     results.at['Diversity', 'evaluation'] = diversity
-    results.at['IREOS_index', 'evaluation'] = c[0]
+    if compute_ireos_difficulty:
+        results.at['IREOS_index', 'evaluation'] = c[0]
     results.to_csv(path)
 
     exit(0)

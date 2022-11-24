@@ -7,19 +7,18 @@ from sklearn.metrics import roc_auc_score
 
 from outlier_detection import FastABOD, LDF, LOF, LoOP, COF, KNN, IsoForest, OC_SVM, PCA_Detector
 
-sys.path.append('../../')
 from ireos import IREOS, IREOS_LC
 from data import load_campos_data
 
 import numpy as np
 from log_regression import KLR
 
-
 compute_ireos_difficulty = True
+
 
 # TODO: similiarity with main compute_outlier_resuls
 def get_outlier_results(algorithm, X, y, dataset=None, **kwargs):
-    model = algorithm(X, y, **kwargs)
+    model = algorithm(X, **kwargs)
     if dataset is not None:
         path = os.path.join('memory', dataset, algorithm.__name__ + '_solution.npy')
         if not os.path.exists(os.path.dirname(path)):
@@ -34,13 +33,12 @@ def get_outlier_results(algorithm, X, y, dataset=None, **kwargs):
     return next_solutions
 
 
-'''
-Parkinson 4: das schlechteste
-Parkinson 2: perfekt
-'''
-
-
 def main():
+    """
+    Computes difficulty and diversity for dataset according to
+    Outlier Detection results. Takes dataset as argument
+    """
+
     dataset = "Hepatitis_withoutdupl_norm_05_v02"
     if len(sys.argv) > 1:
         dataset = sys.argv[1]
@@ -48,6 +46,7 @@ def main():
 
     N = len(X)
 
+    # Algorithms to compute the difficutly and diversity
     algorithm_setting = [
         (FastABOD, {'max_neighbors': N}),
         (LDF, {'max_neighbors': N}),
@@ -65,10 +64,13 @@ def main():
     ranked_map = np.empty((n, len(algorithm_setting)))
 
     for alg_index, (algorithm, kwargs) in enumerate(algorithm_setting):
-        solutions = get_outlier_results(algorithm, X, y, dataset, **kwargs)
+        # Get best auc score solution for different k's
+        solutions = get_outlier_results(algorithm, X, dataset, **kwargs)
         roc_auc_evaluations = [roc_auc_score(y, solution) for solution in solutions]
         argmax, _ = max(list(enumerate(roc_auc_evaluations)), key=lambda x: x[1])
         best_solution = solutions[argmax]
+
+        # get outlier ranks according to top n
         outlier_indices, = np.where(y == 1)
         _, positions = np.where(np.argsort(best_solution)[::-1] == outlier_indices[:, None])
         bins = positions // n + 1
@@ -86,8 +88,6 @@ def main():
         Ireos.fit(X, [y])
         c = list(Ireos.compute_ireos_scores())
         print(f'Datasetscore: {c}')
-
-    # print(f'E_I: {Ireos.E_I}')
 
     path = os.path.join('memory', dataset, 'dataset_evaluation.csv')
     results = pd.DataFrame([])

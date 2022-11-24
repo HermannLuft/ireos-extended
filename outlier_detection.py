@@ -20,7 +20,11 @@ from pyod.models.lof import LOF as LOF_pyod
 from abc import ABC
 
 
-# TODO: k von 0 bis 100 nur lollll
+# TODO: missing INFLO, KDEOS, KNNW, ODIN comparing to paper of Marques
+# more infos on http://ethesis.nitrkl.ac.in/5130/1/109CS0195.pdf
+# GLOSH: https://hdbscan.readthedocs.io/en/latest/outlier_detection.html
+# All algorithms are implemented in JAVA by ELKI
+
 class OutlierDetector(ABC):
     __metaclass__ = abc.ABCMeta
 
@@ -31,15 +35,13 @@ class OutlierDetector(ABC):
     def solution_type(self):
         pass
 
-    def __init__(self, X, y_true, **kwargs):
+    def __init__(self, X, **kwargs):
         self.X = X
-        self.y_true = y_true
 
     def compute_scores(self):
         return self._compute_scores()
 
 
-# TODO: why different from LoOP?
 class LOF(OutlierDetector):
 
     @property
@@ -52,6 +54,7 @@ class LOF(OutlierDetector):
         self.contamination = kwargs.get("contamination", 0.05)
 
     def _compute_scores(self):
+        # TODO: Compare with LoOP algorithm
         solution_scores = []
         for n in range(1, self.max_neighbors):
             model = LOF_pyod(n_neighbors=n).fit(self.X)
@@ -73,7 +76,6 @@ class LoOP(OutlierDetector):
     def _compute_scores(self):
         solution_scores = []
         for n in range(1, self.max_neighbors):
-            # TODO: consider pyod.LOF
             m = loop.LocalOutlierProbability(self.X, n_neighbors=n).fit()
             solution_scores.append(m.local_outlier_probabilities.astype(float))
         return np.vstack((*solution_scores,))
@@ -131,7 +133,6 @@ class LDF(OutlierDetector):
 
     def _compute_scores(self):
         solution_scores = []
-        # for n in range(2, self.max_neighbors):
         # TODO: why not uses k ?
         # TODO: mikowski distance as default?
         model = KDE().fit(self.X)
@@ -233,8 +234,3 @@ class PCA_Detector(OutlierDetector):
         solution_scores.append(model.predict_proba(self.X, method='unify')[:, 1])
         return np.vstack((*solution_scores,))
 
-
-# TODO: missing INFLO, KDEOS, KNNW, ODIN (How to interpret?)
-# more infos on http://ethesis.nitrkl.ac.in/5130/1/109CS0195.pdf
-# GLOSH: https://hdbscan.readthedocs.io/en/latest/outlier_detection.html
-# All algorithms are implemented in JAVA by ELKI

@@ -19,6 +19,16 @@ def main():
         'Hepatitis_withoutdupl_norm_05_v08',
         'Hepatitis_withoutdupl_norm_05_v09',
         'Hepatitis_withoutdupl_norm_05_v10',
+        'Arrhythmia_withoutdupl_norm_05_v01',
+        'Arrhythmia_withoutdupl_norm_05_v02',
+        'Arrhythmia_withoutdupl_norm_05_v03',
+        'Arrhythmia_withoutdupl_norm_05_v04',
+        'Arrhythmia_withoutdupl_norm_05_v05',
+        'Arrhythmia_withoutdupl_norm_05_v06',
+        'Arrhythmia_withoutdupl_norm_05_v07',
+        'Arrhythmia_withoutdupl_norm_05_v08',
+        'Arrhythmia_withoutdupl_norm_05_v09',
+        'Arrhythmia_withoutdupl_norm_05_v10',
         'Parkinson_withoutdupl_norm_05_v01',
         'Parkinson_withoutdupl_norm_05_v02',
         'Parkinson_withoutdupl_norm_05_v03',
@@ -89,13 +99,16 @@ def main():
         'LinearSVC_distance': 'LC_D',
     }
 
+    plt.rcParams["figure.figsize"] = (10, 10)
+
     evaluation_pd = evaluation.transpose()
     evaluation_pd.rename(columns=lambda x: column_conv[x], inplace=True)
     evaluation_pd.plot(kind='box', title='Classifier Correlations', showmeans=True, fontsize=8)
     plt.savefig('plots/Classifier_Correlations.png')
 
     colors_conv = {
-        'Hepatitis': 'red',
+        'Arrhythmia': 'red',
+        'Hepatitis': 'yellow',
         'Parkinson': 'blue',
         'Lymphography': 'orange',
         'WBC': 'green',
@@ -109,7 +122,11 @@ def main():
 
     difficulty_pd['group'] = [dataset.split('_')[0] for dataset in difficulty_pd.index.to_list()]
     min_diff = difficulty_pd.groupby('group').Difficulty.idxmin()
-    evaluation_pd.loc[min_diff]
+    #evaluation_pd.loc[min_diff]
+
+    all_info = pd.concat([evaluation_pd, difficulty_pd], axis=1)
+    all_info.sort_values(by=['Difficulty']).drop(['Diversity'], axis=1).plot.line(x='Difficulty', subplots=True)
+    all_info.sort_values(by=['Diversity']).drop(['Difficulty'], axis=1).plot.line(x='Diversity', subplots=True)
 
     plt.show()
 

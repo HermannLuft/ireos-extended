@@ -9,3 +9,5 @@ KNNC_10%,0.709
 KNNC_50%,0.758
 LinearSVC_probability,0.818
 LinearSVC_distance,0.782
+KLR_probability,0.758
+KLR_distance,0.758

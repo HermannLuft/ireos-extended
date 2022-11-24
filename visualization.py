@@ -4,19 +4,30 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.neighbors import NeighborhoodComponentsAnalysis
 from sklearn.decomposition import PCA
 
+Z_list = None
+index = 0
+cmaps = ['Purples', 'Oranges', 'Greens']
 
-def plot_model(model, plot):
-    h = .1
-    xx, yy = np.meshgrid(np.arange(-8, 15, h),
-                         np.arange(-8, 15, h))
-    samples = np.concatenate((xx[:, :, None], yy[:, :, None]), axis=-1)
-    samples = samples.reshape((np.prod(samples.shape[:-1]), samples.shape[-1]))
+def plot_model(models, plots, memorize=True):
+    global Z_list, index
+    h = 1000
+    xx, yy = np.meshgrid(np.linspace(-0.1, 1.1, h),
+                         np.linspace(-0.1, 1.1, h))
 
-    Z = model.predict(samples).reshape((len(yy), len(xx)))
-    Z = model.predict_proba(samples).reshape((len(yy), len(xx), 2))[:, :, 0]
+    for model, plot in zip(models, plots):
+        samples = np.concatenate((xx[:, :, None], yy[:, :, None]), axis=-1)
+        samples = samples.reshape((np.prod(samples.shape[:-1]), samples.shape[-1]))
 
-    plot.contourf(xx, yy, Z, cmap='gray', vmin=0., vmax=1.)
-    plot.axis('equal')
+        #Z = model.predict(samples).reshape((len(yy), len(xx)))
+        Z = model.predict_proba(samples).reshape((len(yy), len(xx), 2))[:, :, 1]
+        Z[Z <= 0.4] = 0
+        levels = np.linspace(0.4, Z.max(), 10)
+
+        plot.contour(xx, yy, Z, cmap=cmaps[index], vmin=0., vmax=Z.max(), levels=levels)
+        #plot.set_aspect('equal', 'box')
+
+    index += 1
+    #plot.axis('equal', 'box')
 
 
 def plot_classification(X, y, plot=None, model=None, colors=None):
@@ -39,4 +50,4 @@ def plot_classification(X, y, plot=None, model=None, colors=None):
 
     #ax[0].scatter(X[y == 0, 0], X[y == 0, 1], c=colors[y == 0])
     #ax[0].scatter(X[y == 1, 0], X[y == 1, 1])
-    plt.show()
+    #plt.show()

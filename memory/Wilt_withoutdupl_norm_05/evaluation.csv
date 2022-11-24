@@ -1,0 +1,9 @@
+,correlation
+SVC_probability,-0.806
+SVC_distance,-0.661
+KNNM_10%,-0.83
+KNNM_50%,-0.83
+KNNC_10%,-0.83
+KNNC_50%,-0.83
+LinearSVC_probability,-0.515
+LinearSVC_distance,-0.576

@@ -3,6 +3,7 @@ import sys
 from bisect import bisect
 from itertools import combinations
 import pandas as pd
+from numpy import ndarray
 from scipy import stats
 from sklearn import preprocessing
 from sklearn.linear_model import LogisticRegression
@@ -10,7 +11,6 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.svm import SVC, LinearSVC
 
-sys.path.append('../../')
 from ireos import IREOS_KNN, IREOS_LC
 
 import numpy as np
@@ -22,23 +22,25 @@ from sklearn.metrics import auc, roc_auc_score
 from data import get_synthetic_features, create_data, get_parkinson_X_y, get_dataset_prepared, \
     load_campos_data
 from log_regression import KLR, KNNC, KNNM
-from multiprocessing import Process, Queue
-from sklearn.decomposition import PCA
 from joblib import Parallel, delayed
 from outlier_detection import LoOP, COF, FastABOD, LDF, KNN, IsoForest, OC_SVM, LoOP, LOF, LOCI, \
-    PCA_Detector
+    PCA_Detector, OutlierDetector
 from visualization import plot_classification, plot_model
-
-# TODO: add log levels
 
 # if the results should always be computed when already present
 force_compute = True
 
 
-def compute_outlier_result(algorithm, X, y, dataset=None, **kwargs):
-    model = algorithm(X, y, **kwargs)
+def compute_outlier_result(algorithm: OutlierDetector, X, dataset=None, **kwargs):
+    """
+    Computes multiple (1 <= k <= len(X)) outlier detection
+    results for OutlierDetector
+    """
+
+    model = algorithm(X, **kwargs)
     if dataset is not None:
         path = os.path.join('memory', dataset, algorithm.__name__ + '_solution.npy')
+        # TODO: THREAD race condition
         if not os.path.exists(os.path.dirname(path)):
             os.makedirs(os.path.dirname(path))
         try:
@@ -52,6 +54,9 @@ def compute_outlier_result(algorithm, X, y, dataset=None, **kwargs):
 
 
 def filtering_solutions(solutions, ground_truth):
+    """
+    Extracts 10 evenly spaced solution based on auc value
+    """
     evaluations = [(roc_auc_score(ground_truth, solution), solution) for solution in solutions]
 
     print(f'All auc scores are {[round(x[0], 3) for x in evaluations]}')
@@ -69,9 +74,15 @@ def filtering_solutions(solutions, ground_truth):
 
 
 def main():
+    """
+    Computes Spearman Correlations for Classifiers LG, SVM, KNN
+    Uses dataset as first argument
+    """
+
+
     # Data Setup
     contamination = 0.05
-    dataset = "Parkinson_withoutdupl_norm_05_v09"
+    dataset = "Arrhythmia_withoutdupl_05_v01"
 
     if len(sys.argv) > 1:
         dataset = sys.argv[1]
@@ -80,7 +91,7 @@ def main():
     n_samples = len(X)
     plot_classification(X, y)
 
-    # TODO: check on duplicates!
+    # Algorithm setup: algorithm to use with its arguments
     algorithm_setting = [
         (FastABOD, {'max_neighbors': n_samples, 'contamination': contamination}),
         (LDF, {'max_neighbors': n_samples, 'contamination': contamination}),
@@ -93,7 +104,7 @@ def main():
         # (LOCI, {'max_neighbors': n_samples, 'contamination': contamination}), Not further used due to time reasons
         (PCA_Detector, {'max_neighbors': n_samples, 'contamination': contamination}),
     ]
-    job = [delayed(compute_outlier_result)(algorithm, X=X, y=y, dataset=dataset, **kwargs)
+    job = [delayed(compute_outlier_result)(algorithm, X=X, dataset=dataset, **kwargs)
            for algorithm, kwargs in algorithm_setting]
     solutions_list = Parallel(n_jobs=len(algorithm_setting))(job)
     solutions = np.vstack(solutions_list)
@@ -101,21 +112,23 @@ def main():
     path = os.path.join('memory', dataset, 'auc_scores.npy')
     np.save(path, auc_scores)
 
+    # 10 solutions to compute the spearman correlation with the ireos index
     auc_scores, omega = filtering_solutions(solutions, y)
 
+    # Classifiers to use for the ireos index with accuracy arguments
     ireos_setting = [
-        #(LogisticRegression, {'metric': 'probability', 'n_gammas': 100}),
         #(KLR, {'metric': 'probability', 'n_gammas': 100}),
         #(KLR, {'metric': 'distance', 'n_gammas': 100}),
+        #(LogisticRegression, {'metric': 'probability', 'n_gammas': 100}),
         #(LogisticRegression, {'metric': 'distance', 'n_gammas': 100}),
-        (SVC, {'metric': 'probability', 'n_gammas': 100}),
-        (SVC, {'metric': 'distance', 'n_gammas': 100}),
-        (KNNM, {'percent': 0.1}),
-        (KNNM, {'percent': 0.5}),
+        #(SVC, {'metric': 'probability', 'n_gammas': 100}),
+        #(SVC, {'metric': 'distance', 'n_gammas': 100}),
+        #(KNNM, {'percent': 0.1}),
+        #(KNNM, {'percent': 0.5}),
         (KNNC, {'percent': 0.1}),
         (KNNC, {'percent': 0.5}),
-        (LinearSVC, {'metric': 'probability', 'n_gammas': 1}),
-        (LinearSVC, {'metric': 'distance', 'n_gammas': 1}),
+        #(LinearSVC, {'metric': 'probability', 'n_gammas': 1}),
+        #(LinearSVC, {'metric': 'distance', 'n_gammas': 1}),
     ]
 
     for Maximum_Margin_Classifier, kwargs in ireos_setting:
@@ -137,7 +150,6 @@ def main():
         except FileNotFoundError:
             results = pd.DataFrame([])
         if force_compute or name not in results.index:
-            #Ireos.E_I = 0
             Ireos.fit(X, omega)
             c = list(Ireos.compute_ireos_scores())
             correlation, _ = stats.spearmanr(auc_scores, c)

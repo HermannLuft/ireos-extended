@@ -90,7 +90,8 @@ class KNNC:
     def predict_proba(self, X, k):
         # dist, _ = self.model.kneighbors(X)
         dist, _ = self.kdt.query(X, k=min(k, len(self.X) - 1) + 1, return_distance=True)
-        return dist[:, 1:].mean(axis=1)[:, None]
+        return dist[0, [[-1]]]
+        #return dist[:, 1:].mean(axis=1)[:, None]
 
     # def predict(self, X):
     #    return self.model.predict(X)
@@ -112,3 +113,21 @@ class KNNM:
 
     def predict(self, X):
         return self.model.predict(X)
+
+class KNNC_inspect:
+
+    def __init__(self, X, k):
+        self.X = X
+        self.k = k
+        self.kdt = KDTree(X, metric='euclidean')
+
+        # self.model.fit(X=X[y == 0], y=y[y == 0])
+
+    def predict_proba(self, X):
+        # dist, _ = self.model.kneighbors(X)
+        dist, _ = self.kdt.query(X, k=min(self.k, len(self.X) - 1) + 1, return_distance=True)
+        return dist[0, [[-1]]]
+        #return dist[:, 1:].mean(axis=1)[:, None]
+
+    # def predict(self, X):
+    #    return self.model.predict(X)

@@ -8,7 +8,7 @@ Z_list = None
 index = 0
 cmaps = ['Purples', 'Oranges', 'Greens']
 
-def plot_model(models, plots, memorize=True):
+def plot_model(models, plots, proba=True):
     global Z_list, index
     h = 1000
     xx, yy = np.meshgrid(np.linspace(-0.1, 1.1, h),
@@ -19,11 +19,22 @@ def plot_model(models, plots, memorize=True):
         samples = samples.reshape((np.prod(samples.shape[:-1]), samples.shape[-1]))
 
         #Z = model.predict(samples).reshape((len(yy), len(xx)))
-        Z = model.predict_proba(samples).reshape((len(yy), len(xx), 2))[:, :, 1]
-        Z[Z <= 0.4] = 0
-        levels = np.linspace(0.4, Z.max(), 10)
+        if proba:
+            Z = model.predict_proba(samples).reshape((len(yy), len(xx), 2))[:, :, 1]
+        else:
+            Z = model.decision_function(samples).reshape((len(yy), len(xx)))
+        #Z = (Z - Z.min())/(Z.max() - Z.min())
+        #print(Z)
+        #Z[Z < 0.99] = 0
 
-        plot.contour(xx, yy, Z, cmap=cmaps[index], vmin=0., vmax=Z.max(), levels=levels)
+
+        if proba:
+            levels = np.linspace(0, 1, 4)
+            plot.contour(xx, yy, Z, cmap=cmaps[index], vmin=0, vmax=1, levels=levels, zorder=-1)
+        else:
+            levels = np.linspace(-1, 1, 4)
+            plot.contour(xx, yy, Z, cmap=cmaps[index], vmin=-1, vmax=1, levels=levels, zorder=-1)
+        plot.autoscale(False)
         #plot.set_aspect('equal', 'box')
 
     index += 1

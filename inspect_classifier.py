@@ -21,10 +21,10 @@ from visualization import plot_model, plot_classification
 
 debug = True
 # chooseable is SVM, KLR or KNN
-separability_algorithm = 'SVM'
+separability_algorithm = 'KNN'
 used_kernel = 'rbf'
 # area
-measure = 'probability'
+measure = 'distance'
 n_threads = mp.cpu_count()
 
 
@@ -46,7 +46,7 @@ def model_svm_rbf(X, Y, gamma, C):
         clf.fit(X, Y_copy)
         return clf
     elif measure == 'distance':
-        return model.decision_function(X[Y_copy == 1])
+        return model
     #return clf
 
 
@@ -63,7 +63,7 @@ def model_log_regression(X, Y, gamma):
     return model
 
 
-def model_knn(X, Y, k):
+def model_knn(X, k):
     return KNNC_inspect(X, k)
 
 
@@ -130,7 +130,9 @@ def main():
     max_gamma = 100
 
     gamma_values = np.linspace(0.0001, max_gamma, n_gammas)
+    k_values = list(np.arange(1, 0.5*len(X)).astype(int))
     gamma_plot_values = np.array([0.10, 1, 10, 100])
+    k_plot_values = (np.array([0.01, 0.05, 0.15, 0.50])*len(X)).astype(int)
     # gamma_values = np.logspace(-2, np.log10(max_gamma), 9)
     # for KNN{} use values between 0 and 1 as procent
     # gamma_values = np.logspace(-2, np.log10(max_gamma), n_gammas)
@@ -140,19 +142,24 @@ def main():
     # C = np.array([100.0, 100.0, 100.0, 100.0])
 
     fig, axis = plt.subplots(2, 2)
-    fig.suptitle('KLR')
+    fig.suptitle(separability_algorithm)
     fig.set_size_inches(18.5, 10.5)
 
     fig2, axis2 = plt.subplots()
-    axis2.set_ylim(0, 1.1)
-    axis2.set_xlim(0, gamma_values[-1])
+    if measure == 'probability' or separability_algorithm == 'KNN':
+        axis2.set_ylim(0, 1.1)
+    else:
+        axis2.set_ylim(-1.1, 1.1)
+    #axis2.set_xlim(0, gamma_values[-1])
+
+    p_curves = []
 
     for y in [y_1, y_2, y_3]:
 
         #plot_classification(X, y)
         arguments = map(lambda gamma: [X, y, gamma, C], list(gamma_values))
         if separability_algorithm == "KNN":
-            arguments = map(lambda k: [X, y, k, C], list(np.arange(1, 50)))
+            arguments = map(lambda k: [X, k], k_values)
         # starting learning phase
         models = []
         from multiprocessing import Pool
@@ -177,16 +184,21 @@ def main():
                     raise NotImplementedError(f'{measure} not implemented')
             p.append(p_model)
 
-        #print(p)
+        p = np.array(p)
+
+        p_curves.append(p)
 
         # plotting model results
         for title, model in zip(separability_algorithm.split(), models):
 
             #gamma_plot_values = np.logspace(-3, np.log10(max_gamma), 4)
             #gamma_plot_values = np.linspace(0.0001, max_gamma, 4)
-            models = [model_functions[title](X, y, index, C) for index in gamma_plot_values]
+            if separability_algorithm != 'KNN':
+                models = [model_functions[title](X, y, index, C) for index in gamma_plot_values]
+            else:
+                models = [model_functions[title](X, index) for index in k_plot_values]
             axes = np.array(axis).reshape(-1)
-            plot_model(models, axes)
+            plot_model(models, axes, proba=measure=='probability')
 
             #for index, ax in zip(gamma_plot_values, np.array(axis).reshape(-1)):
                 # model_variant = model[index]
@@ -200,16 +212,22 @@ def main():
                 #ax.scatter(X[y == 0, 0], X[y == 0, 1])
                 #ax.scatter(X[y == 1, 0], X[y == 1, 1])
 
-        # Plot gamma curve
+    # Plot gamma curve
+    #p_curves = np.array(p_curves)
+    #p_curves = (p_curves - p_curves.min()) / (p_curves.max() - p_curves.min())
 
-        for p_model, label in zip(p, separability_algorithm.split()):
-            #print(p_model)
-            axis2.plot(gamma_values, p_model, label=label)
+    for p_curve in p_curves:
+        #print(p_model)
+        if separability_algorithm != 'KNN':
+            axis2.plot(gamma_values, p_curve[0])
+        else:
+            axis2.plot(k_values, p_curve[0])
         # axis2.legend(loc='lower right')
 
+
     for ax in np.array(axis).reshape(-1):
-        ax.scatter(X[y_c == 0, 0], X[y_c == 0, 1])
-        ax.scatter(X[y_c == 1, 0], X[y_c == 1, 1])
+        ax.scatter(X[y_c == 0, 0], X[y_c == 0, 1], zorder=1)
+        ax.scatter(X[y_c == 1, 0], X[y_c == 1, 1], zorder=1)
 
     plt.show()
 

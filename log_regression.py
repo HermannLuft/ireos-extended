@@ -127,6 +127,11 @@ class KNNC_inspect:
         # dist, _ = self.model.kneighbors(X)
         dist, _ = self.kdt.query(X, k=min(self.k, len(self.X) - 1) + 1, return_distance=True)
         return dist[0, [[-1]]]
+
+    def decision_function(self, X):
+        # dist, _ = self.model.kneighbors(X)
+        dist, _ = self.kdt.query(X, k=min(self.k, len(self.X) - 1) + 1, return_distance=True)
+        return dist[:, -1]
         #return dist[:, 1:].mean(axis=1)[:, None]
 
     # def predict(self, X):

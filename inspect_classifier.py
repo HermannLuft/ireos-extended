@@ -110,7 +110,7 @@ def main():
     y_2 = np.zeros(X.shape[0])
     y_2[-1] = 1
     y_3 = np.zeros(X.shape[0])
-    # 15 ganz gut, 31 auch
+    # 15 ganz gut, 31 auch, aber 30 ist das wahre
     y_3[30] = 1
     y_c = y_1 + y_2 + y_3
 

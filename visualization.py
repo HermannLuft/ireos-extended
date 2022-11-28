@@ -6,7 +6,7 @@ from sklearn.decomposition import PCA
 
 Z_list = None
 index = 0
-cmaps = ['Purples', 'Oranges', 'Greens']
+cmaps = ['Blues', 'Oranges', 'Greens']
 
 def plot_model(models, plots, proba=True):
     global Z_list, index

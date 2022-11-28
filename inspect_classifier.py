@@ -5,6 +5,7 @@ import sys
 from joblib import delayed, Parallel
 from sklearn import preprocessing
 from sklearn.calibration import CalibratedClassifierCV
+from sklearn.neural_network import MLPClassifier
 
 sys.path.append('../../')
 
@@ -15,16 +16,16 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from data import get_synthetic_features, create_data
-from log_regression import KLR, KNNM, KNNC, KNNC_inspect
+from log_regression import KLR, KNNM, KNNC, KNNC_inspect, KNNM_inspect
 
 from visualization import plot_model, plot_classification
 
 debug = True
 # chooseable is SVM, KLR or KNN
-separability_algorithm = 'KNN'
+separability_algorithm = 'TEST'
 used_kernel = 'rbf'
 # area
-measure = 'distance'
+measure = 'probability'
 n_threads = mp.cpu_count()
 
 
@@ -62,15 +63,24 @@ def model_log_regression(X, Y, gamma):
     model.fit(X, Y)
     return model
 
+def model_test(X, Y, k):
+    Y_copy = np.copy(Y)
+    if np.logical_or(Y == 0, Y == 1).all():
+        Y_copy[Y == 0] = -1
+    model = MLPClassifier(random_state=0, max_iter=3000, hidden_layer_sizes=(100, k + 1)).fit(X, Y_copy)
+    return model
+
+
 
 def model_knn(X, k):
     return KNNC_inspect(X, k)
 
 
-def model_knn_m(X, Y, procent, C):
-    k = procent * (len(X) - 1)
-    model = KNNM(X, Y)
-    return model
+def model_knn_m(X, k):
+    return KNNM_inspect(X, k)
+    #k = procent * (len(X) - 1)
+    #model = KNNM(X, Y)
+    #return model
 
 
 model_functions = {
@@ -79,6 +89,7 @@ model_functions = {
     'LRG': model_log_regression,
     'KNN': model_knn,
     'KNN_M': model_knn_m,
+    'TEST': model_test,
 }
 
 
@@ -129,6 +140,8 @@ def main():
     n_gammas = 100
     max_gamma = 100
 
+
+
     gamma_values = np.linspace(0.0001, max_gamma, n_gammas)
     k_values = list(np.arange(1, 0.5*len(X)).astype(int))
     gamma_plot_values = np.array([0.10, 1, 10, 100])
@@ -146,7 +159,9 @@ def main():
     fig.set_size_inches(18.5, 10.5)
 
     fig2, axis2 = plt.subplots()
-    if measure == 'probability' or separability_algorithm == 'KNN':
+    if measure == 'probability' or separability_algorithm.startswith('KNN'):
+        axis2.set_ylim(0, 1.1)
+    elif separability_algorithm == 'TEST':
         axis2.set_ylim(0, 1.1)
     else:
         axis2.set_ylim(-1.1, 1.1)
@@ -158,8 +173,10 @@ def main():
 
         #plot_classification(X, y)
         arguments = map(lambda gamma: [X, y, gamma, C], list(gamma_values))
-        if separability_algorithm == "KNN":
+        if separability_algorithm.startswith('KNN'):
             arguments = map(lambda k: [X, k], k_values)
+        elif separability_algorithm == 'TEST':
+            arguments = map(lambda k: [X, y, k], k_values)
         # starting learning phase
         models = []
         from multiprocessing import Pool
@@ -193,10 +210,12 @@ def main():
 
             #gamma_plot_values = np.logspace(-3, np.log10(max_gamma), 4)
             #gamma_plot_values = np.linspace(0.0001, max_gamma, 4)
-            if separability_algorithm != 'KNN':
-                models = [model_functions[title](X, y, index, C) for index in gamma_plot_values]
-            else:
+            if separability_algorithm.startswith('KNN'):
                 models = [model_functions[title](X, index) for index in k_plot_values]
+            elif separability_algorithm == 'TEST':
+                models = [model_functions[title](X, y, index) for index in k_plot_values]
+            else:
+                models = [model_functions[title](X, y, index, C) for index in gamma_plot_values]
             axes = np.array(axis).reshape(-1)
             plot_model(models, axes, proba=measure=='probability')
 
@@ -218,10 +237,12 @@ def main():
 
     for p_curve in p_curves:
         #print(p_model)
-        if separability_algorithm != 'KNN':
-            axis2.plot(gamma_values, p_curve[0])
-        else:
+        if separability_algorithm.startswith('KNN'):
             axis2.plot(k_values, p_curve[0])
+        elif separability_algorithm == 'TEST':
+            axis2.plot(k_values, p_curve[0])
+        else:
+            axis2.plot(gamma_values, p_curve[0])
         # axis2.legend(loc='lower right')
 
 

@@ -51,7 +51,7 @@ class KLR:
 
         # CHANGED
         # removed 0.5 * objective_2
-        prob = cp.Problem(cp.Minimize(loss + 0.5*objective_2))
+        prob = cp.Problem(cp.Minimize(loss + 0.5 * objective_2))
 
         try:
             prob.solve(solver='ECOS', abstol=1e-6)
@@ -91,7 +91,7 @@ class KNNC:
         # dist, _ = self.model.kneighbors(X)
         dist, _ = self.kdt.query(X, k=min(k, len(self.X) - 1) + 1, return_distance=True)
         return dist[0, [[-1]]]
-        #return dist[:, 1:].mean(axis=1)[:, None]
+        # return dist[:, 1:].mean(axis=1)[:, None]
 
     # def predict(self, X):
     #    return self.model.predict(X)
@@ -111,8 +111,21 @@ class KNNM:
         mp = self.X[i[:, 1:].flatten()].mean(axis=0)
         return np.linalg.norm(X - mp, axis=1)[:, None]
 
-    def predict(self, X):
-        return self.model.predict(X)
+
+class KNNM_inspect:
+
+    def __init__(self, X, k):
+        self.X = X
+        self.k = k
+        self.kdt = KDTree(X, metric='euclidean')
+
+        # self.model.fit(X=X[y == 0], y=y[y == 0])
+
+    def decision_function(self, X):
+        i = self.kdt.query(X, k=min(self.k, len(self.X) - 1) + 1, return_distance=False)
+        mp = self.X[i[:, 1:].flatten()].mean(axis=0)
+        return np.linalg.norm(X - mp, axis=1)[:, None]
+
 
 class KNNC_inspect:
 
@@ -132,7 +145,7 @@ class KNNC_inspect:
         # dist, _ = self.model.kneighbors(X)
         dist, _ = self.kdt.query(X, k=min(self.k, len(self.X) - 1) + 1, return_distance=True)
         return dist[:, -1]
-        #return dist[:, 1:].mean(axis=1)[:, None]
+        # return dist[:, 1:].mean(axis=1)[:, None]
 
     # def predict(self, X):
     #    return self.model.predict(X)

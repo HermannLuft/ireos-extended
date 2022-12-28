@@ -1,6 +1,6 @@
 .temp.py
 .plot_ideen.txt
 memory/
-plots/
+plots/**
 .mosek.lic
 test

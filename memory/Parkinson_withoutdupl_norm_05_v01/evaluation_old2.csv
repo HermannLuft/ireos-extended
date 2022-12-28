@@ -1,0 +1,14 @@
+,correlation,auc_position,auc_to_maxindex
+KLR_p,0.188,4.0,0.745
+KLR_f,0.261,4.0,0.745
+LRG_nystroem_p,0.164,7.0,0.49
+LRG_nystroem_f,0.236,7.0,0.49
+SVM_p,0.152,7.0,0.49
+SVM_f,0.152,7.0,0.49
+LRG_linear,0.261,4.0,0.745
+SVM_linear,0.2,4.0,0.745
+KNNC_10%,0.127,4.0,0.745
+KNNC_50%,0.079,7.0,0.49
+KNNM_10%,0.115,4.0,0.745
+KNNM_50%,0.115,4.0,0.745
+MLP,0.879,4.0,0.745

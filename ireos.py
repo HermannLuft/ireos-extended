@@ -1,12 +1,14 @@
 import abc
 import multiprocessing as mp
 from time import sleep
+from typing import List
 
 import numpy as np
 from joblib import delayed, Parallel
 from matplotlib import pyplot as plt
 from numpy import int64
 from sklearn.calibration import CalibratedClassifierCV
+from sklearn.exceptions import ConvergenceWarning
 from sklearn.kernel_approximation import Nystroem, PolynomialCountSketch
 from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
 from sklearn.metrics import roc_auc_score
@@ -14,177 +16,252 @@ from sklearn.metrics.pairwise import polynomial_kernel
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC, LinearSVC
 from sklearn import metrics
+from sklearn.utils._testing import ignore_warnings
 
 # from noise.ireos.alternative import KLR_alt
-from log_regression import KLR, KNNC, KNNM
+from separability_algorithms import KLR, KNNC, KNNM
 
 from visualization import plot_classification
+import numpy.typing as npt
 
 plotting = False
 
 
 # TODO: tqdm: https://stackoverflow.com/questions/24983493/tracking-progress-of-joblib-parallel-execution
 
-# TODO: improve base class usage
+
 class IREOS:
-    __metaclass__ = abc.ABCMeta
-
-    @property
-    @abc.abstractmethod
-    def classify(self):
-        pass
-
-    @property
-    @abc.abstractmethod
-    def fit(self):
-        pass
-
-    @property
-    @abc.abstractmethod
-    def compute_ireos_scores(self):
-        pass
-
-
-class IREOS_LC(IREOS):
-    # TODO: gamma_delta entfernen
     """
-    Using dynamic programming:
-    ---candidates---
-    |...............
-    |...............
-    g.......p.......
-    |...............
-    |...............
-    => Ireos Index for multiple solutions can be computed faster
+    Create IREOS class with individual separability algorithm and the parameter range
+
+    => IREOS index for multiple solutions can be computed faster
+    See formula for IREOS by Marques et al. for further investigations
+
+    Application example:
+    Object = IREOS(KLR, ...)
+    Object.fit(Dataset, [*solutions])
+    Index_evaluations = Object.compute_scores()
+
+    Classifier: separability algorithm for the IREOS index (must have fit function)
+    r_name optional: value range of hyperparameter, e.g. gamma for KLR in the original IREOS
+    r_min optional: hyperparameter min
+    r_max optional: hyperparameter max
+    sample_size optional: How many samples of separability curve
+    adjustment: adjustment for chance
+    metric: 'probability' for p and decision for 'f'
+    kernel_leverage: leverage into higher dimensions of input data
+    balance_class: oversample outlier
+    discrete_values: forces hyperparameter to be only integers
+    solution_dependent: Outlierness depends on solution
+    c_args: arguments for the classifier
     """
 
-    def __init__(self, Classifier, n_gammas=100, m_cl=1.0, C=100.0, adjustment=False, metric='probability'):
-        self.gamma_bounds = None
+    def __init__(self, Classifier, r_name=None, r_min=None, r_max=None,
+                 sample_size=None, adjustment=False, metric='probability',
+                 kernel_leverage='linear', balance_class=False, discrete_values=False,
+                 solution_dependent=False, c_args=dict()):
+
+        self.solution_dependent = solution_dependent
+        self.r_name = r_name
+        self.kernel_leverage = kernel_leverage
+        self.c_args = c_args
+        self.sample_size = sample_size
+        self.r_min = r_min
         self.E_I = 0
+        self.discrete_values = discrete_values
         self.Classifier = Classifier
-        self.m_cl = m_cl
-        self.C_constant = C
-        self.X = None
-        self.solutions = None
         self._gamma_max = -1
         self.metric = metric
-        self.gamma_delta = 0.01
-        self.probability_array = None
         self.adjustment = adjustment
-        self.n_gammas = n_gammas
+        self.balance_class = balance_class
+        self.r_max = r_max
+        self.r_values = None
+        self.probability_array = None
+        self.solutions = None
+        self.X = None
+        self.run_values = None
 
-    def classify(self, solution, C=100, gamma=.2):
-        if self.Classifier == KLR:
-            model = KLR(kernel='rbf', gamma=gamma, C=C)
-            model.fit(self.X, solution)
-            if self.metric == 'probability':
-                p = model.predict_proba(self.X[solution == 1])[:, 1]
-            elif self.metric == 'distance':
-                p = model.decision_function(self.X[solution == 1])
-        elif self.Classifier == LogisticRegression:
-            model = LogisticRegression(C=C, penalty='l2')
-            # Information: RBFSampler can also be used
-            f_map = Nystroem(gamma=gamma, random_state=0, n_components=len(self.X))
-            X_transformed = f_map.fit_transform(self.X)
-            model.fit(X_transformed, solution)
-            if self.metric == 'probability':
-                p = model.predict_proba(X_transformed[solution == 1])[:, 1]
-            elif self.metric == 'distance':
-                p = model.decision_function(X_transformed[solution == 1])
-        elif self.Classifier == SVC:
-            model = SVC(kernel='rbf', C=C, gamma=gamma, probability=False, random_state=0)
-            model.fit(self.X, solution)
-            if self.metric == 'probability':
-                clf = CalibratedClassifierCV(model, cv="prefit", method='sigmoid')
-                clf.fit(self.X, solution)
-                p = clf.predict_proba(self.X[solution == 1])[:, 1]
-            elif self.metric == 'distance':
-                p = model.decision_function(self.X[solution == 1])
-        elif self.Classifier == LinearSVC:
-            model = LinearSVC(C=C, max_iter=10000, dual=False)
-            model.fit(self.X, solution)
-            if self.metric == 'probability':
-                clf = CalibratedClassifierCV(model, cv="prefit", method='sigmoid')
-                clf.fit(self.X, solution)
-                p = clf.predict_proba(self.X[solution == 1])[:, 1]
-            elif self.metric == 'distance':
-                p = model.decision_function(self.X[solution == 1])
+    def estimate_r_max(self) -> None:
+        if self.r_name == 'gamma' or self.kernel_leverage == 'Nystroem':
+            max_solution = np.ones_like(self.solutions[0]) if self.adjustment else np.max(self.solutions, axis=0)
+            self.r_max = self.get_gamma_max(max_solution)
+
+    def get_gamma_max(self, solution: npt.ArrayLike) -> float:
+        """
+        Estimates gamma_max with exponential increase sequentially on every candidate
+        """
+
+        if self.metric == 'probability':
+            minimum_output = 0.5
+        elif self.metric == 'decision':
+            if self.Classifier in [KLR, LogisticRegression, SVC]:
+                minimum_output = 0
         else:
-            raise NotImplementedError(f'{self.Classifier.__name__} not implemented!')
+            raise NotImplementedError(f'Metric {self.metric} not implemented!')
+
+        print(f'Getting \u03B3 max for minimum value: {minimum_output}')
+        gamma = 0.01 * len(self.X) / (len(self.X[0]) * len(self.X[0]))
+        for candidate in np.identity(len(solution))[solution > 0.5]:
+            temp_var = self.classify(candidate, r_value=gamma)
+            while temp_var < minimum_output:
+                # print(type(temp_var[0]))
+                print(f'\rSample: {np.where(candidate == 1)[0][0]} p: {temp_var[0]:.2f} \u03B3: {gamma:.2f}', end="")
+                # print(f'Sample: {np.where(candidate == 1)[0][0]} p: {temp_var} \u03B3: {gamma}', end="\n")
+                gamma *= 1.1
+                temp_var = self.classify(candidate, r_value=gamma)
+
+        print(f'\nComputed \u03B3 max: {gamma:.2f}')
+        return gamma
+
+    @ignore_warnings(category=ConvergenceWarning)
+    def classify(self, candidate: npt.ArrayLike, r_value: float, w: npt.ArrayLike = None) -> float:
+        """
+        Computes the function s(x_j, v)
+        """
+        y = w if self.solution_dependent else candidate
+
+        if self.r_name is not None:
+            # classifying with variable v: s(x_j, v)
+            model = self.Classifier(**{self.r_name: r_value}, **self.c_args)
+        else:
+            # classifying s(x_j)
+            model = self.Classifier(**self.c_args)
+
+        # Dimension leverage of X
+        if self.kernel_leverage == 'linear':
+            X_transformed = self.X
+        elif self.kernel_leverage == 'Nystroem':
+            f_map = Nystroem(gamma=r_value, random_state=0, n_components=len(self.X))
+            X_transformed = f_map.fit_transform(self.X)
+        else:
+            raise NotImplementedError(f'Kernel {self.kernel_leverage} not implemented')
+
+        # Oversampling candidate
+        if self.balance_class:
+            more_samples = np.repeat(X_transformed[candidate == 1], len(candidate == 0) - 2, axis=0)
+            X_balanced = np.vstack((more_samples, X_transformed))
+            Y_balanced = np.hstack((np.ones(len(more_samples)), y))
+        else:
+            X_balanced = X_transformed
+            Y_balanced = y
+
+        # TODO: kNN's doesn't really fit here
+        model.fit(X_balanced, Y_balanced)
+
+        if self.metric == 'probability':
+            # s(x_j, ...) = p(x_j, ...)
+            if not hasattr(model, 'predict_proba'):
+                clf = CalibratedClassifierCV(model, cv="prefit", method='sigmoid')
+                clf.fit(X_transformed, candidate)
+            else:
+                clf = model
+            p = clf.predict_proba(X_transformed[candidate == 1])[:, 1]
+        elif self.metric == 'decision':
+            # s(x_j, ...) = f(x_j, ...)
+            p = model.decision_function(X_transformed[candidate == 1])
 
         return p
 
-    def get_gamma_max(self, solution):
-        print(f'Getting max ...')
-        actual_metric = self.metric
-        self.metric = 'probability'
-        gamma = self.gamma_delta
-        for candidate in np.identity(len(solution))[solution > 0.5]:
-            if self.gamma_bounds[candidate == 1] == 0:
-                temp_var = self.classify(candidate, C=self.C_constant, gamma=gamma)
-                while temp_var <= 0.5:
-                    print(f'\rSample: {np.where(candidate == 1)[0][0]} p: {temp_var} gamma: {gamma}', end="")
-                    #gamma += self.gamma_delta
-                    gamma *= 1.1
-                    temp_var = self.classify(candidate, C=self.C_constant, gamma=gamma)
-                self.gamma_bounds[candidate == 1] = gamma
-        #print(f'Computed gamma: {np.max(self.gamma_bounds[solution > 0.5])}')
-        self.metric = actual_metric
-        return np.max(self.gamma_bounds[solution > 0.5])
+    def fit(self, data, solutions=[]):
+        """
+        Defines parameter range
+        """
 
-    def fit(self, dataset, solutions=[]):
         assert len(solutions), "Solutions have to be passed to fit function"
-        self.X = dataset
+        self.X = data
         self.solutions = solutions
-        self.gamma_bounds = np.zeros((len(self.X)))
-        self.gamma_delta = self.gamma_delta * len(dataset) / (len(dataset[0]) * len(dataset[0]))
-        return self.gamma_max
 
-    def compute_probability_array(self, gamma_values, with_sparse_solution=None):
-        self.probability_array = np.zeros((self.n_gammas, len(self.X)))
-        for i, gamma in enumerate(gamma_values):
-            # print(f'Working for gamma: {run_variable}')
+        if self.r_name is not None or self.r_name is None and self.kernel_leverage != 'linear':
+            # Computes parameter range for varying parameters: KLR, SVM, KNN, MLP ...
+            if self.r_min is None:
+                self.r_min = 0.01 * len(self.X) / (len(self.X[0]) * len(self.X[0]))
+            if self.r_max is None:
+                self.estimate_r_max()
+            if self.sample_size is not None:
+                if self.discrete_values:
+                    self.r_values = np.linspace(self.r_min, self.r_max, self.sample_size, endpoint=False).astype(int)
+                else:
+                    self.r_values = np.linspace(self.r_min, self.r_max, self.sample_size + 1)[1:]
+                    # self.r_values = np.linspace(self.r_min, self.r_max, self.sample_size)
+
+            else:
+                self.r_values = np.arange(1, self.r_max + 1)
+        else:
+            # Computes parameter range for single parameter value: Linear Classifiers
+            self.r_values = np.array([-1])
+
+    def compute_probability_array(self, w: np.ndarray = None, with_sparse_solution=None) -> None:
+        """
+        Computes probabilities using dynamic programming: s(x, v) for all x and v
+        ---candidates---
+        |...............
+        |...............
+        v.......s.......
+        |...............
+        |...............
+        ________________
+        Example KLR: s(x, v) = p(x, gamma), KNN: s(x, v) = d(x, k)
+
+        with_sparse solution:
+        """
+        self.probability_array = np.zeros((len(self.r_values), len(self.X)))
+        for i, r_value in enumerate(self.r_values):
+            if len(self.r_values) > 1:
+                print(f'\rWorking for \u03B3 level : [{r_value:.2f}/{self.r_max:.2f}]', end="")
+            else:
+                print(f'\rWorking for one classification', end="")
             from multiprocessing import cpu_count
             if with_sparse_solution is not None:
                 candidates = np.identity(len(self.X))[with_sparse_solution > 0.5]
             else:
                 candidates = np.identity(len(self.X))
             n_jobs = cpu_count()
-            job = [delayed(self.classify)(candidate, C=self.C_constant, gamma=gamma)
+            job = [delayed(self.classify)(candidate, r_value, w)
                    for candidate in candidates]
             if with_sparse_solution is not None:
                 self.probability_array[i, with_sparse_solution > 0.5, None] = Parallel(n_jobs=n_jobs)(job)
             else:
                 self.probability_array[i] = Parallel(n_jobs=n_jobs)(job)
+        print()
 
-    def compute_ireos_scores(self):
-        gamma_values = np.linspace(self.gamma_delta, self.gamma_max, self.n_gammas + 1)[1:]
-        # Log-Scale:
-        # gamma_values = np.logspace(np.log10(0.00001), np.log10(self.gamma_max), self.n_run_values)
-        self.compute_probability_array(gamma_values=gamma_values)
-        if self.adjustment:
-            uniform_average = np.average(self.probability_array, axis=1)
-            self.E_I = np.reciprocal(self.n_gammas, dtype=float) * np.sum(uniform_average)
-        # TODO: Replace by numpy functions
+    def compute_ireos_scores(self) -> List[float]:
+        """
+        Computes I(w) for solutions
+        """
+
+        if not self.solution_dependent:
+            # computes s(x_j, v) for each candidate and v
+            self.compute_probability_array()
         for solution in self.solutions:
+            if self.solution_dependent:
+                # computes s(x_j, v, w) with m_cl or for KNN_W
+                self.compute_probability_array(solution)
+            # TODO: Replace by numpy functions
+            if self.adjustment:
+                # computes E_I
+                uniform_average = np.average(self.probability_array, axis=1)
+                self.E_I = np.reciprocal(len(self.r_values), dtype=float) * np.sum(uniform_average)
             weights = solution
+
+            # Computes I after Marques et al
             avg_p_gamma = np.average(self.probability_array, axis=1, weights=weights)
-            ireos_score = np.reciprocal(self.n_gammas, dtype=float) * np.sum(avg_p_gamma)
+            ireos_score = np.reciprocal(len(self.r_values), dtype=float) * np.sum(avg_p_gamma)
             ireos_score = (ireos_score - self.E_I) / (1 - self.E_I)
 
             # visualization
             if plotting:
                 fig, ax = plt.subplots(2)
                 ax[1].set_ylim(0, np.max(avg_p_gamma))
-                ax[1].set_xlim(0, gamma_values[-1])
+                ax[1].set_xlim(0, self.r_values[-1])
                 ax[0].set_title(f'ireos_adjusted: {ireos_score}')
-                ax[1].plot(gamma_values, avg_p_gamma)
+                ax[1].plot(self.r_values, avg_p_gamma)
                 plot_classification(self.X, solution, plot=ax[0])
             yield ireos_score
 
     @property
-    def gamma_max(self):
+    def gamma_max(self) -> float:
         if self._gamma_max < 0:
+            # computes gamma_max if not already precomputed
             if self.Classifier in (SVC, LogisticRegression, KLR, MLPClassifier):
                 max_solution = np.ones_like(self.solutions[0]) if self.adjustment else np.max(self.solutions, axis=0)
                 self._gamma_max = self.get_gamma_max(max_solution)
@@ -193,91 +270,5 @@ class IREOS_LC(IREOS):
         return self._gamma_max
 
     @gamma_max.setter
-    def gamma_max(self, value):
+    def gamma_max(self, value: float):
         self._gamma_max = value
-
-
-class IREOS_KNN(IREOS):
-    """
-    Using dynamic programming:
-    ---candidates---
-    |...............
-    |...............
-    g.......p.......
-    |...............
-    |...............
-
-    """
-
-    def __init__(self, Classifier, percent=0.1, m_cl=1.0, adjustment=False, execution_policy='parallel'):
-        self.n_k = None
-        self.percent = percent
-        self.E_I = 0
-        self.Classifier = Classifier
-        self.m_cl = m_cl
-        self.execution_policy = execution_policy
-        self.X = None
-        self.solutions = None
-        self.probability_array = None
-        self.adjustment = adjustment
-        self.KNNModel = None
-
-    def classify(self, solution, k):
-        if self.Classifier == KNNC:
-            # TODO: muss eigentlich nur einmal trainiert werden
-            # TODO: macht vll in der Reihenfolge der Parallelität nicht viel Sinn
-            self.KNNModel = KNNC(self.X, solution)
-            p = self.KNNModel.predict_proba(self.X[solution == 1], k)
-        elif self.Classifier == KNNM:
-            # if self.KNNModel is None:
-            self.KNNModel = KNNM(self.X, solution)
-            p = self.KNNModel.predict_proba(self.X[solution == 1], k)
-        else:
-            raise NotImplementedError(f'{self.Classifier.__name__} not implemented!')
-
-        return p
-
-    def fit(self, dataset, solutions=[]):
-        assert len(solutions), "Solutions have to be passed to fit function"
-        self.X = dataset
-        self.n_k = int(self.percent * len(self.X))
-        self.solutions = solutions
-
-    def compute_probability_array(self, k_values, with_sparse_solution=None, metric='probability'):
-        self.probability_array = np.zeros((self.n_k, len(self.X)))
-        for i, k in enumerate(k_values):
-            # print(f'Working for gamma: {run_variable}')
-            from multiprocessing import cpu_count
-            if with_sparse_solution is not None:
-                candidates = np.identity(len(self.X))[with_sparse_solution > 0.5]
-            else:
-                candidates = np.identity(len(self.X))
-            n_jobs = cpu_count()
-            job = [delayed(self.classify)(candidate, k=k)
-                   for candidate in candidates]
-            if with_sparse_solution is not None:
-                self.probability_array[i, with_sparse_solution > 0.5, None] = Parallel(n_jobs=n_jobs)(job)
-            else:
-                self.probability_array[i] = Parallel(n_jobs=n_jobs)(job)
-
-    def compute_ireos_scores(self):
-        k_values = np.arange(1, self.n_k + 1)
-        self.compute_probability_array(k_values=k_values)
-        for solution in self.solutions:
-            weights = solution
-            avg_p_gamma = np.average(self.probability_array, axis=1, weights=weights)
-            ireos_score = np.reciprocal(self.n_k, dtype=float) * np.sum(avg_p_gamma)
-            if self.adjustment:
-                uniform_average = np.average(self.probability_array, axis=1)
-                self.E_I = np.reciprocal(self.n_k, dtype=float) * np.sum(uniform_average)
-            ireos_score = (ireos_score - self.E_I) / (1 - self.E_I)
-
-            # visualization
-            if plotting:
-                fig, ax = plt.subplots(2)
-                ax[1].set_ylim(0, np.max(avg_p_gamma))
-                ax[1].set_xlim(0, k_values[-1])
-                ax[0].set_title(f'ireos_adjusted: {ireos_score}')
-                ax[1].plot(k_values, avg_p_gamma)
-                plot_classification(self.X, solution, plot=ax[0])
-            yield ireos_score

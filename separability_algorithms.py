@@ -30,7 +30,7 @@ class KLR:
     model.predict_proba(test_sample)
     """
 
-    def __init__(self, kernel='rbf', C=None, gamma=1.0):
+    def __init__(self, kernel='rbf', C: float=None, gamma: float=1.0) -> None:
         self.kernel = kernel
         self.C = C
         self.gamma = gamma
@@ -40,7 +40,7 @@ class KLR:
         self.bias = 0
         self.kernel_function = lambda x: x
 
-    def fit(self, X, y):
+    def fit(self, X: npt.ArrayLike, y: npt.ArrayLike) -> None:
         """
         Estimating parameters beta and bias for data X and classes y
         """
@@ -95,7 +95,7 @@ class KLR:
         neg_prob = 1.0 - pos_prob
         return np.hstack((neg_prob[:, None], pos_prob[:, None]))
 
-    def predict(self, x):
+    def predict(self, x: npt.ArrayLike) -> npt.ArrayLike:
         predictions = self.predict_proba(x)[:, 0]
         predictions[predictions < 0.5] = 0
         predictions[predictions >= 0.5] = 1

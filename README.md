@@ -80,8 +80,8 @@ Run the following command:
 ```sh
 python ./outlierness.py <dataset name>
 ```
-Visualize separability curves on dataset<br />
+Visualize separability curves on example dataset<br />
 Run the following command:
 ```sh
-python ./separability_curves.py <dataset name>
+python ./separability_curves.py 
 ```

@@ -43,7 +43,7 @@ class Environment:
                  interval=(1, min(kwargs['n_samples'], kwargs['n_dimensions']))),
             #dict(ad_algorithm=LODA, r_name='n_random_cuts', interval=(1, min(100, kwargs['n_samples'])),
             #     ad_kwargs={'n_bins': 'auto'}),
-            dict(ad_algorithm=HBOS, r_name='n_histograms', interval=(3, min(100, kwargs['n_samples']))),
+            dict(ad_algorithm=HBOS, r_name='n_bins', interval=(3, min(100, kwargs['n_samples']))),
         ]
 
     @property

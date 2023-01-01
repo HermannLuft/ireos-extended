@@ -1,10 +1,9 @@
-import mosek
+#import mosek
 import numpy as np
 import pandas as pd
 from cvxpy import SolverError
 from numba import njit, jit, float64
 from numba.experimental import jitclass
-from optimparallel import minimize_parallel
 # from rpy2 import robjects
 from scipy.optimize import minimize
 from sklearn.calibration import CalibratedClassifierCV
@@ -76,10 +75,10 @@ class KLR:
 
         # Problem solving with FALLBACK MOSEK or when no licence obtained: ECOS -> SCS
         try:
-            prob.solve(solver='MOSEK', mosek_params={mosek.iparam.bi_max_iterations: 10_000,
-                                                     mosek.iparam.intpnt_max_iterations: 10_000,
-                                                     mosek.iparam.sim_max_iterations: 10_000})
-            # prob.solve(solver='ECOS', abstol=1e-6)
+            #prob.solve(solver='MOSEK', mosek_params={mosek.iparam.bi_max_iterations: 10_000,
+            #                                         mosek.iparam.intpnt_max_iterations: 10_000,
+            #                                         mosek.iparam.sim_max_iterations: 10_000})
+            prob.solve(solver='ECOS', abstol=1e-6)
         except SolverError:
             prob.solve(solver='SCS', verbose=False)
 

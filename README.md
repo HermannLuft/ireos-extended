@@ -15,8 +15,9 @@ This model requires several packages to run:
 | cvxpy           | 1.2.1   |
 
 ```sh
-pip install scipy pandas numpy scikit-learn pyod joblib matplotlib cvxpy
+pip install scipy pandas numpy scikit-learn joblib matplotlib cvxpy pyod
 ```
+Be aware, due to random contributions in the ad algorithms variations in the correlations occur.
 
 ## Create your environment
 Environment is configured at environment.py
@@ -51,7 +52,7 @@ self._separability_algorithms = [
 
 ## Run
 Datasets must be located at ./datasets/{prefix}/{dataset name}.arff.<br />
-Example dataset: Parkinson_withoutdupl_norm_05_v04 <br />
+Example dataset: Hepatitis_withoutdupl_norm_05_v01 <br />
 Open your favorite Terminal and run the following command:
 ```sh
 cd <absolute path to ireos>

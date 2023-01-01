@@ -182,6 +182,7 @@ class IREOS:
                     self.r_values = np.linspace(self.r_min, self.r_max, self.sample_size, endpoint=False).astype(int)
                 else:
                     self.r_values = np.linspace(self.r_min, self.r_max, self.sample_size + 1)[1:]
+                    #self.r_values = (self.r_max - np.linspace(0, self.r_max, self.sample_size, endpoint=False))[::-1]
                     # self.r_values = np.linspace(self.r_min, self.r_max, self.sample_size)
 
             else:

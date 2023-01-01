@@ -17,7 +17,7 @@ This module plots information about the evaluations by the separability algorith
 
 def main():
     # column to inspect in the plots
-    column = 'correlation'
+    column = 'auc_to_maxindex'
 
     # datasets to include in the plots
     datasets = [

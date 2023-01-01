@@ -1,22 +1,4 @@
-import abc
-
 import numpy as np
-from pyod.models.kde import KDE
-from pyod.models.ocsvm import OCSVM
-from sklearn.neighbors import LocalOutlierFactor
-from sklearn.ensemble import IsolationForest
-from sklearn.preprocessing import minmax_scale
-from sklearn.svm import OneClassSVM
-from sklearn.metrics import roc_auc_score, f1_score
-from PyNomaly import loop
-from pyod.models.iforest import IForest
-from pyod.models.cof import COF as COF_pyod
-from pyod.models.abod import ABOD
-from pyod.models.loci import LOCI as LOCI_pyod
-from pyod.models.knn import KNN as KNN_pyod
-from pyod.models.pca import PCA as PCA_pyod
-from pyod.models.lof import LOF as LOF_pyod
-from abc import ABC
 
 
 # TODO: missing INFLO, KDEOS, KNNW, ODIN comparing to paper of Marques

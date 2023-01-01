@@ -74,7 +74,7 @@ class KLR:
 
         prob = cp.Problem(cp.Minimize(loss + 0.5 * objective), constraints)
 
-        # Problem solving with FALLBACK MOSEK or ECOS -> SCS
+        # Problem solving with FALLBACK MOSEK or when no licence obtained: ECOS -> SCS
         try:
             prob.solve(solver='MOSEK', mosek_params={mosek.iparam.bi_max_iterations: 10_000,
                                                      mosek.iparam.intpnt_max_iterations: 10_000,

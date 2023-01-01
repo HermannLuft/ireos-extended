@@ -1,8 +1,6 @@
 import numpy as np
-from numba import njit
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.metrics.pairwise import linear_kernel
-import tensorflow_probability as tfp
 
 """
 This model implements kernel leverage with additional dimensions or kernel matrix

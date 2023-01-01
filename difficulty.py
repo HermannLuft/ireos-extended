@@ -2,19 +2,7 @@ import os
 import sys
 
 import pandas as pd
-from pyod.models.abod import ABOD
-from pyod.models.cof import COF
-from pyod.models.hbos import HBOS
-from pyod.models.iforest import IForest
-from pyod.models.kde import KDE
-from pyod.models.knn import KNN
-from pyod.models.lof import LOF
-from pyod.models.ocsvm import OCSVM
-from pyod.models.pca import PCA as PCA_Detector
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
-from sklearn.neural_network import MLPClassifier
-from sklearn.svm import SVC, LinearSVC
 
 from environment import Environment
 from main import compute_outlier_result

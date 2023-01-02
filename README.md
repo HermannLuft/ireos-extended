@@ -17,7 +17,12 @@ This model requires several packages to run:
 ```sh
 pip install scipy pandas numpy scikit-learn joblib matplotlib cvxpy pyod
 ```
-Be aware, due to random contributions in the ad algorithms variations in the correlations occur.
+For errors with numba prerequisites on pyod installation, install numba per following command:
+```sh
+pip install numba
+```
+
+Be aware, due to random contributions in the anomaly detection algorithms, slight variations in the correlations occur.
 
 ## Create your environment
 Environment is configured at environment.py

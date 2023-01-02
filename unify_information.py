@@ -91,10 +91,17 @@ def main():
             print(f'Dataset difficulty for {dataset} not found')
 
     # synchronize information about all datasets
-    memorizing_path = os.path.join('memory', 'complete', 'evaluation.csv')
+    base_path = os.path.join('memory', 'complete')
+    if not os.path.exists(base_path):
+        os.makedirs(base_path)
+
+    if not os.path.exists(os.path.join('plots')):
+        os.makedirs(os.path.join('plots'))
+
+    memorizing_path = os.path.join(base_path, 'evaluation.csv')
     evaluation.to_csv(memorizing_path)
 
-    memorizing_path = os.path.join('memory', 'complete', 'difficulty.csv')
+    memorizing_path = os.path.join(base_path, 'difficulty.csv')
     difficulty.to_csv(memorizing_path)
 
     # set column identities to shorthands for the plots
@@ -120,8 +127,8 @@ def main():
     plt.rcParams["figure.figsize"] = (10, 10)
 
     # rename columns and create transposed table
-    evaluation.drop('IsoForest', inplace=True)
-    evaluation.drop('KNNC_W_50%', inplace=True)
+    #evaluation.drop('IsoForest', inplace=True)
+    #evaluation.drop('KNNC_W_50%', inplace=True)
     #evaluation.drop('KNNC_W_50%', inplace=True)
     evaluation_pd = evaluation.transpose()
     evaluation_pd.rename(columns=lambda x: column_conv[x], inplace=True)
@@ -146,7 +153,7 @@ def main():
     ax.set_ylabel("Valid for dataset variants", fontsize=18)
 
     plt.show()
-    #    plt.savefig('plots/Classifier_Correlations.png')
+    plt.savefig('plots/Classifier_Correlations.png')
 
     # show distribution of datasets in the difficulty, diversity plane with confidence ellipse
     colors_conv = {
@@ -198,12 +205,13 @@ def main():
                                         cmap=create_colormap('e1165a', 'BFEFFF'),
                                         vmin=np.floor(auc_to_difficulty['Recommended ROC-AUC by Index'].min()),
                                         vmax=np.ceil(auc_to_difficulty['Recommended ROC-AUC by Index'].max()))
-    p8_difdiv = auc_to_difficulty.transpose()['Parkinson_withoutdupl_norm_05_v08'][['Difficulty', 'Diversity']]
-    ax.annotate('Parkinson v8', xy=(*p8_difdiv,), xycoords='data',
-                xytext=(0.90, 0.85), textcoords='axes fraction',
-                arrowprops=dict(facecolor='black', shrink=0.05, width=0.5, headwidth=8.0),
-                horizontalalignment='right', verticalalignment='top',
-                )
+    # annotate pv8 if present
+    #p8_difdiv = auc_to_difficulty.transpose()['Parkinson_withoutdupl_norm_05_v08'][['Difficulty', 'Diversity']]
+    #ax.annotate('Parkinson v8', xy=(*p8_difdiv,), xycoords='data',
+    #            xytext=(0.90, 0.85), textcoords='axes fraction',
+    #            arrowprops=dict(facecolor='black', shrink=0.05, width=0.5, headwidth=8.0),
+    #            horizontalalignment='right', verticalalignment='top',
+    #            )
 
     plt.show()
 

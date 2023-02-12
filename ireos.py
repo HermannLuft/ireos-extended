@@ -19,7 +19,7 @@ from sklearn import metrics
 from sklearn.utils._testing import ignore_warnings
 
 # from noise.ireos.alternative import KLR_alt
-from separability_algorithms import KLR, KNNC, KNNM
+from separability_algorithms import KLR, KNNC, KNNM, SVM
 
 from visualization import plot_classification
 import numpy.typing as npt
@@ -94,7 +94,8 @@ class IREOS:
         if self.metric == 'probability':
             minimum_output = 0.5
         elif self.metric == 'decision':
-            if self.Classifier in [KLR, LogisticRegression, SVC]:
+            # TODO: not a good dependency, maybe just set output to zero in this case
+            if self.Classifier in [KLR, LogisticRegression, SVC, SVM]:
                 minimum_output = 0
         else:
             raise NotImplementedError(f'Metric {self.metric} not implemented!')
@@ -151,6 +152,8 @@ class IREOS:
         if self.metric == 'probability':
             # s(x_j, ...) = p(x_j, ...)
             if not hasattr(model, 'predict_proba'):
+                #print(f'candidate: {candidate}')
+                #print(f'model prediction: {model.decision_function(X_balanced)}')
                 clf = CalibratedClassifierCV(model, cv="prefit", method='sigmoid')
                 clf.fit(X_transformed, candidate)
             else:

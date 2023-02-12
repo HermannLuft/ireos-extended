@@ -14,7 +14,7 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.svm import SVC, LinearSVC
 
-from separability_algorithms import KLR, KNNC_w, KNNC, KNNM
+from separability_algorithms import KLR, KNNC_w, KNNC, KNNM, SVM
 
 
 class Environment:
@@ -58,22 +58,24 @@ class Environment:
         # kwargs: attributes obtained by main function, e.g. kwargs['n_samples']
         # elements structured as dict(Name, separability algorithm, arguments for IREOS)
         self._separability_algorithms = [
-            ('KLR_p', KLR, dict(r_name='gamma', metric='probability', sample_size=100, c_args=dict(kernel='rbf', C=100, ))),
+            #('KLR_p', KLR, dict(r_name='gamma', metric='probability', sample_size=100, c_args=dict(kernel='rbf', C=100, ))),
             #('KLR_f', KLR, dict(r_name='gamma', metric='decision', sample_size=100, c_args=dict(kernel='rbf', C=100, ))),
+            ('SVM_p', SVM, dict(r_name='gamma', metric='probability', sample_size=100, c_args=dict(kernel='rbf', C=100, ))),
+            #('SVM_f', SVM_Test, dict(r_name='gamma', metric='decision', sample_size=100, c_args=dict(kernel='rbf', C=100, ))),
             #('LRG_nystroem_p', LogisticRegression, dict(metric='probability', sample_size=100, kernel_leverage='Nystroem',
             #                                            c_args=dict(C=100, penalty='l1', intercept_scaling=0.5,
             #                                                        solver='liblinear'))),
             #('LRG_nystroem_f', LogisticRegression, dict(metric='decision', sample_size=100, kernel_leverage='Nystroem',
             #                                            c_args=dict(C=100, penalty='l1', intercept_scaling=0.5,
             #                                                        solver='liblinear'))),
-            #('SVM_p', SVC, dict(r_name='gamma', metric='probability', sample_size=100, c_args=dict(kernel='rbf', C=100,
-            #                                                                                       probability=False,
-            #                                                                                       random_state=0))),
-            ('SVM_f', SVC, dict(r_name='gamma', metric='decision', sample_size=100, c_args=dict(kernel='rbf', C=100,
-                                                                                                probability=False,
-                                                                                                random_state=0))),
+            ('SVC_p', SVC, dict(r_name='gamma', metric='probability', sample_size=100, c_args=dict(kernel='rbf', C=100,
+                                                                                                   probability=False,
+                                                                                                   random_state=0))),
+            #('SVC_f', SVC, dict(r_name='gamma', metric='decision', sample_size=100, c_args=dict(kernel='rbf', C=100,
+            #                                                                                    probability=False,
+            #                                                                                    random_state=0))),
             #('LRG_linear', LogisticRegression, dict(metric='probability', c_args=dict(C=100))),
-            #('SVM_linear', LinearSVC, dict(metric='decision', c_args=dict(C=100))),
+            #('SVC_linear', LinearSVC, dict(metric='decision', c_args=dict(C=100))),
             #('KNNC_10%', KNNC, dict(r_name='k', metric='decision', r_min=1, r_max=int(0.1 * kwargs['n_samples']))),
             #('KNNC_50%', KNNC, dict(r_name='k', metric='decision', r_min=1, r_max=int(0.5 * kwargs['n_samples']))),
             #('KNNM_10%', KNNM, dict(r_name='k', metric='decision', r_min=1, r_max=int(0.1 * kwargs['n_samples']))),

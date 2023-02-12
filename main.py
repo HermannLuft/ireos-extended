@@ -67,6 +67,7 @@ def filtering_solutions(solutions, ground_truth, amount=10):
     evaluations = [(roc_auc_score(ground_truth, solution), solution) for solution in solutions]
     # filter solutions with equal score for every sample
     evaluations = list(filter(lambda x: not (x[1] == x[1][0]).all(), evaluations))
+    #evaluations = list(filter(lambda x: not (x[1] <= 0.5).all(), evaluations))
     # print(f'All auc scores are {[round(x[0], 3) for x in evaluations]}')
 
     auc_scores_values = np.array([x[0] for x in evaluations])

@@ -127,9 +127,8 @@ def main():
     plt.rcParams["figure.figsize"] = (10, 10)
 
     # rename columns and create transposed table
-    #evaluation.drop('IsoForest', inplace=True)
-    #evaluation.drop('KNNC_W_50%', inplace=True)
-    #evaluation.drop('KNNC_W_50%', inplace=True)
+    evaluation.drop('IsoForest', inplace=True)
+    evaluation.drop('KNNC_W_50%', inplace=True)
     evaluation_pd = evaluation.transpose()
     evaluation_pd.rename(columns=lambda x: column_conv[x], inplace=True)
     evaluation = evaluation_pd.transpose()

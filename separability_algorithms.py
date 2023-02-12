@@ -1,4 +1,4 @@
-#import mosek
+# import mosek
 import numpy as np
 import pandas as pd
 from cvxpy import SolverError
@@ -29,7 +29,7 @@ class KLR:
     model.predict_proba(test_sample)
     """
 
-    def __init__(self, kernel='rbf', C: float=None, gamma: float=1.0) -> None:
+    def __init__(self, kernel='rbf', C: float = None, gamma: float = 1.0) -> None:
         self.kernel = kernel
         self.C = C
         self.gamma = gamma
@@ -75,7 +75,7 @@ class KLR:
 
         # Problem solving with FALLBACK MOSEK or when no licence obtained: ECOS -> SCS
         try:
-            #prob.solve(solver='MOSEK', mosek_params={mosek.iparam.bi_max_iterations: 10_000,
+            # prob.solve(solver='MOSEK', mosek_params={mosek.iparam.bi_max_iterations: 10_000,
             #                                         mosek.iparam.intpnt_max_iterations: 10_000,
             #                                         mosek.iparam.sim_max_iterations: 10_000})
             prob.solve(solver='ECOS', abstol=1e-6)
@@ -99,6 +99,88 @@ class KLR:
         predictions[predictions < 0.5] = 0
         predictions[predictions >= 0.5] = 1
         return predictions
+
+    def get_gamma(self):
+        return self.gamma
+
+
+class SVM:
+    """
+    Support Vector Machine
+    Works under the convex optimization framework for Python: cvxpy
+
+    Application example:
+    model = SVM(C=100, gamma=1.0)
+    model.fit(X, y)
+    model.predict_proba(test_sample)
+    """
+
+    def __init__(self, kernel='rbf', C: float = None, gamma: float = 1.0) -> None:
+        self.classes_ = None
+        self.kernel = kernel
+        self.C = C
+        self.gamma = gamma
+        self.weights = None
+        self.X = None
+        self.y = None
+        self.bias = 0
+        self.kernel_function = lambda x: x
+
+    def fit(self, X: npt.ArrayLike, y: npt.ArrayLike) -> None:
+        """
+        Estimating parameters beta and bias for data X and classes y
+        """
+        self.classes_ = np.unique(y)
+        # adjust y for simple loss function
+        self.y = np.copy(y)
+        if np.logical_or(y == 0, y == 1).all():
+            self.y[y == 0] = -1
+        self.X = X
+
+        # create Kernel matrix K and summation function over K(x_j, input)
+        K, self.kernel_function = create_kernel(X, self.gamma, kernel=self.kernel)
+
+        # creating parameters
+        m = len(self.y)
+        beta = cp.Variable((m + 1, 1))
+        C_parameter = cp.Parameter(nonneg=True)
+        C_parameter.value = self.C
+
+        # classification factor: sum over max(0, 1 - y_i*f_i)
+        eta = cp.multiply(self.y, (K @ beta[:m] + beta[-1])[:, 0])
+        loss = cp.sum(
+            C_parameter * cp.pos(1 - eta)
+        )
+
+        # regularization factor: ||beta^T @ K @ beta||
+        objective = cp.quad_form(beta[:m], psd_wrap(K))
+
+        # as we minimize the soft margin problem
+        constraints = []
+
+        prob = cp.Problem(cp.Minimize(loss + 0.5 * objective), constraints)
+
+        # Problem solving with FALLBACK MOSEK or when no licence obtained: ECOS -> SCS
+        try:
+            # prob.solve(solver='MOSEK', mosek_params={mosek.iparam.bi_max_iterations: 10_000,
+            #                                         mosek.iparam.intpnt_max_iterations: 10_000,
+            #                                         mosek.iparam.sim_max_iterations: 10_000})
+            prob.solve(solver='ECOS', abstol=1e-6)
+        except SolverError:
+            prob.solve(solver='SCS', verbose=False)
+
+        self.weights = beta.value[:-1].T
+        self.bias = beta.value[-1]
+
+        __sklearn_is_fitted__ = True
+
+    def decision_function(self, X: npt.ArrayLike) -> npt.ArrayLike:
+        return (self.weights @ self.kernel_function(self.X, X) + self.bias)[0]
+
+    def predict(self, X: npt.ArrayLike) -> npt.ArrayLike:
+        predictions = self.decision_function(X)
+        return np.where(predictions >= 0, 1, 0)
+
 
     def get_gamma(self):
         return self.gamma
@@ -255,7 +337,6 @@ class KNNC_w:
     """
     Implementing kNN maximum margin approximator based on distances to inlier neighbors
     """
-
 
     def __init__(self, k):
         self.kdt = None

@@ -17,7 +17,7 @@ This module plots information about the evaluations by the separability algorith
 
 def main():
     # column to inspect in the plots
-    column = 'auc_to_maxindex'
+    column = 'correlation'
 
     # datasets to include in the plots
     datasets = [
@@ -110,15 +110,17 @@ def main():
         'KLR_f': 'KLR_f',
         'LRG_nystroem_p': 'NLRG_p',
         'LRG_nystroem_f': 'NLRG_f',
-        'SVM_p': 'SVM_p',
-        'SVM_f': 'SVM_f',
+        #'SVM_p': 'SVM_p',
+        #'SVM_f': 'SVM_p',
+        'SVC_p': 'SVC_p',
+        'SVC_f': 'SVC_f',
         'KNNM_10%': 'KM_10',
         'KNNM_50%': 'KM_50',
         'KNNC_10%': 'KC_10',
         'KNNC_50%': 'KC_50',
         'MLP': 'MLP',
         'LRG_linear': 'LRG_L',
-        'SVM_linear': 'SVM_L',
+        'SVC_linear': 'SVC_L',
         'IsoForest': 'BL',
         'KNNC_W_50%': 'KCW_50',
     }
@@ -127,8 +129,8 @@ def main():
     plt.rcParams["figure.figsize"] = (10, 10)
 
     # rename columns and create transposed table
-    evaluation.drop('IsoForest', inplace=True)
-    evaluation.drop('KNNC_W_50%', inplace=True)
+    evaluation.drop('IsoForest', inplace=True, errors='ignore')
+    evaluation.drop('KNNC_W_50%', inplace=True, errors='ignore')
     evaluation_pd = evaluation.transpose()
     evaluation_pd.rename(columns=lambda x: column_conv[x], inplace=True)
     evaluation = evaluation_pd.transpose()

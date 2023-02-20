@@ -1,0 +1,25 @@
+#!/bin/bash -l
+#
+# submit like this: sbatch.tinygpu jobscript.slurm
+#
+#SBATCH --ntasks=12
+##SBATCH --nodes=1
+# walltime
+#SBATCH --time=3:00:00
+#
+# mail to user
+#SBATCH --mail-user=hermann.luft@fau.de
+#SBATCH --mail-type=ALL
+#
+# job name (No Spaces!)
+#SBATCH --job-name=Lymphography_outlier_results
+
+# load module
+module load python/3.9-anaconda
+conda activate env_ireos
+
+cd /home/hpc/iwso/iwso070h/results/ireos
+
+
+python main.py Lymphography_withoutdupl_norm_idf
+python main.py Lymphography_withoutdupl_norm_1ofn
